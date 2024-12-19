@@ -5,6 +5,7 @@ import QRCode from "react-qr-code";
 
 export default function WebRTCPage() {
   const [isAnswer, setIsAnswer] = useState(false);
+  const [loading, setLoading] = useState( false )
   const [isOpen, setIsOpen] = useState(false);
   const [localSDP, setLocalSDP] = useState("");
   const [remoteSDP, setRemoteSDP] = useState("")
@@ -74,8 +75,7 @@ export default function WebRTCPage() {
 
   const handlePasteToClipboard = async event => {
     const conf = confirm("Clipboardを使用してペーストしますか？")
-    if ( !conf ) return
-    event.target.value = await navigator.clipboard.readText()
+    conf ? event.target.value = await navigator.clipboard.readText(): null
   }
 
 
@@ -93,15 +93,21 @@ export default function WebRTCPage() {
     <main className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
       {!isOpen ? (
         isAnswer ? (
+          loading ? (
+            <div className="size-80 bg-[url(./favicon.ico)] bg-center bg-[size-100%] bg-no-repeat animate-spin"/>
+          ): (
           <div className="flex flex-col items-center space-y-4">
             <h1 className="text-2xl font-bold">Copy Your SDP</h1>
             <button
-              onClick={() => handleCopyToClipboard(localSDP)}
+              onClick={() => {
+                handleCopyToClipboard(localSDP)
+                setLoading( true )
+              }}
               className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600">
               Copy SDP
             </button>
           </div>
-        ) : (
+        )) : (
           <div className="flex flex-col items-center space-y-6">
             {inviteURL && (
               <div className="text-center space-y-4">
@@ -125,10 +131,9 @@ export default function WebRTCPage() {
               }}
               className="flex flex-col items-center"
             >
-              <textarea
+              <input
                 placeholder="Paste the remote SDP here"
-                className="w-64 px-4 py-2 border border-b-0 border-gray-700 rounded-t-lg bg-gray-900 text-white resize-none"
-                rows="6"
+                className="px-4 w-64 h-10 border border-b-0 border-gray-700 rounded-t-lg truncate text-white text-center"
                 onClick={ handlePasteToClipboard }
                 onChange={(e) => setRemoteSDP(e.target.value)}
                 value={ remoteSDP }
