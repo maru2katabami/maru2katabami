@@ -111,12 +111,11 @@ export default function WebRTCPage() {
         />
         <button onClick={handleRemoteSDP}>Set Remote SDP</button>
       </div>
-
+      </>: null }
       <div>
         <h2>Local SDP</h2>
         <textarea readOnly value={localSDP} style={{ width: "100%", height: "100px" }} />
       </div>
-      </>:
       <div>
         <h2>Chat</h2>
         <div style={{ border: "1px solid #ccc", padding: "10px", height: "150px", overflowY: "scroll" }}>
@@ -135,7 +134,6 @@ export default function WebRTCPage() {
           Send
         </button>
       </div>
-      }
     </div>
   );
 }
