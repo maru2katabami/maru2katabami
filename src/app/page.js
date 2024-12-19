@@ -81,7 +81,7 @@ export default function WebRTCPage() {
 
   return (
     <div>
-      { opened ?
+      { !opened ?
       <>
       <h1>WebRTC Connection</h1>
       <button onClick={createOffer}>Create Invite</button>
