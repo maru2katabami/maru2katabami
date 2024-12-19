@@ -12,6 +12,7 @@ export default function WebRTCPage() {
   const [message, setMessage] = useState("");
   const [receivedMessages, setReceivedMessages] = useState([]);
   const [opened, setOpened] = useState(false);
+  const [answerSDP, setAnswerSDP] = useState("");
 
   useEffect(() => {
     const pc = new RTCPeerConnection({
@@ -71,6 +72,20 @@ export default function WebRTCPage() {
     setOpened(true);
   };
 
+  const generateAnswer = async () => {
+    if (!peerConnection || !remoteSDP) return;
+    const remoteDesc = new RTCSessionDescription({
+      type: "offer",
+      sdp: remoteSDP,
+    });
+    await peerConnection.setRemoteDescription(remoteDesc);
+
+    const answer = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answer);
+
+    setAnswerSDP(answer.sdp); // アンサー SDP を保存
+  };
+
   const sendMessage = () => {
     if (dataChannel && dataChannel.readyState === "open") {
       dataChannel.send(message);
@@ -93,7 +108,7 @@ export default function WebRTCPage() {
         peerConnection.createAnswer().then((answer) => {
           peerConnection.setLocalDescription(answer);
           setLocalSDP(answer.sdp);
-          setOpened(true); // SDP 設定後にチャットを開く
+          setAnswerSDP(answer.sdp); // アンサー SDP を保存
         });
       });
     }
@@ -126,8 +141,20 @@ export default function WebRTCPage() {
               placeholder="Paste remote SDP here"
               style={{ width: "100%", height: "100px" }}
             />
-            <button onClick={handleRemoteSDP}>Set Remote SDP</button>
+            <button onClick={generateAnswer}>Generate Answer</button>
           </div>
+
+          {answerSDP && (
+            <div>
+              <h2>Answer SDP</h2>
+              <textarea
+                readOnly
+                value={answerSDP}
+                style={{ width: "100%", height: "100px" }}
+              />
+              <p>Copy this SDP and send it to the offerer.</p>
+            </div>
+          )}
 
           <div>
             <h2>Local SDP</h2>
