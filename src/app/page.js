@@ -13,8 +13,6 @@ export default function WebRTCPage() {
   const [message, setMessage] = useState("");
   const [receivedMessages, setReceivedMessages] = useState([]);
 
-  const [opened, setOpened] = useState( false )
-
   useEffect(() => {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }]})
 
@@ -41,7 +39,7 @@ export default function WebRTCPage() {
     if ( !peerConnection ) return
     const channel = peerConnection.createDataChannel("chat")
     setDataChannel( channel )
-    channel.onopen = () => setOpened( true )
+    channel.onopen = () => console.log("Data channel is open!")
     channel.onmessage = e => setReceivedMessages(( prev ) => [ ...prev, e.data ])
 
     const offer = await peerConnection.createOffer()
@@ -67,29 +65,20 @@ export default function WebRTCPage() {
   }
 
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const remoteSDPFromURL = query.get("sdp");
-  
-    if (remoteSDPFromURL && peerConnection) {
-      const remoteDesc = new RTCSessionDescription({ type: "offer", sdp: remoteSDPFromURL });
-      peerConnection.setRemoteDescription(remoteDesc).then(() => {
-        return peerConnection.createAnswer();
-      }).then((answer) => {
-        peerConnection.setLocalDescription(answer);
-        setLocalSDP(answer.sdp);
-  
-        // 自動返信用URLを生成
-        const replyURL = `${window.location.origin}/?sdp=${encodeURIComponent(answer.sdp)}`;
-        console.log("Reply URL (Share this with the sender):", replyURL);
-      });
+    const query = new URLSearchParams( window.location.search )
+    const remoteSDPFromURL = query.get("sdp")
+    if ( remoteSDPFromURL && peerConnection ) {
+      const remoteDesc = new RTCSessionDescription({ type: "offer", sdp: remoteSDPFromURL })
+      peerConnection.setRemoteDescription( remoteDesc )
+      peerConnection.createAnswer().then(( answer ) => {
+        peerConnection.setLocalDescription( answer )
+        setLocalSDP( answer.sdp )
+      })
     }
-  }, [peerConnection]);
-  
+  }, [ peerConnection ])
 
   return (
-    <div>
-      { !opened ?
-      <>
+    <div className="overflow-y-scroll">
       <h1>WebRTC Connection</h1>
       <button onClick={createOffer}>Create Invite</button>
       { inviteURL && (
@@ -111,11 +100,12 @@ export default function WebRTCPage() {
         />
         <button onClick={handleRemoteSDP}>Set Remote SDP</button>
       </div>
-      </>: null }
+
       <div>
         <h2>Local SDP</h2>
         <textarea readOnly value={localSDP} style={{ width: "100%", height: "100px" }} />
       </div>
+
       <div>
         <h2>Chat</h2>
         <div style={{ border: "1px solid #ccc", padding: "10px", height: "150px", overflowY: "scroll" }}>
