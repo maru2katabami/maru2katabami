@@ -1,9 +1,10 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import QRCode from "react-qr-code";
+import { useState, useEffect } from "react"
+import QRCode from "react-qr-code"
 
 export default function WebRTCPage() {
+
   const [localSDP, setLocalSDP] = useState("");
   const [remoteSDP, setRemoteSDP] = useState("");
   const [peerConnection, setPeerConnection] = useState(null);
@@ -11,187 +12,130 @@ export default function WebRTCPage() {
   const [dataChannel, setDataChannel] = useState(null);
   const [message, setMessage] = useState("");
   const [receivedMessages, setReceivedMessages] = useState([]);
-  const [opened, setOpened] = useState(false);
-  const [answerSDP, setAnswerSDP] = useState("");
+
+  const [opened, setOpened] = useState( false )
 
   useEffect(() => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }]})
 
-    pc.onicecandidate = (event) =>
-      event.candidate
-        ? console.log("New ICE candidate:", event.candidate)
-        : setLocalSDP(pc.localDescription?.sdp || "");
+    pc.onicecandidate = event => event.candidate ? console.log("New ICE candidate:", event.candidate ): setLocalSDP(pc.localDescription?.sdp || "")
 
-    pc.onconnectionstatechange = () =>
-      console.log("Connection State:", pc.connectionState);
+    pc.onconnectionstatechange = () => console.log("Connection State:", pc.connectionState )
 
-    pc.oniceconnectionstatechange = () =>
-      console.log("ICE Connection State:", pc.iceConnectionState);
+    pc.oniceconnectionstatechange = () => console.log("ICE Connection State:", pc.iceConnectionState )
 
-    pc.ondatachannel = (event) => {
-      setDataChannel(event.channel);
-      event.channel.onopen = () => {
-        console.log("Data channel is open!");
-        setOpened(true);
-      };
-      event.channel.onmessage = (e) => {
-        console.log("Message received:", e.data);
-        setReceivedMessages((prev) => [...prev, e.data]);
-      };
-    };
+    pc.ondatachannel = event => {
+      setDataChannel( event.channel )
+      event.channel.onopen = () => console.log("Data channel is open!")
+      event.channel.onmessage = e => {
+        console.log("Message received:", e.data)
+        setReceivedMessages( prev => [ ...prev, e.data ])
+      }
+    }
 
-    setPeerConnection(pc);
-    return () => pc.close();
-  }, []);
+    setPeerConnection( pc )
+    return () => pc.close()
+  }, [])
 
   const createOffer = async () => {
-    if (!peerConnection) return;
-    const channel = peerConnection.createDataChannel("chat");
-    setDataChannel(channel);
-    channel.onopen = () => setOpened(true);
-    channel.onmessage = (e) =>
-      setReceivedMessages((prev) => [...prev, e.data]);
+    if ( !peerConnection ) return
+    const channel = peerConnection.createDataChannel("chat")
+    setDataChannel( channel )
+    channel.onopen = () => setOpened( true )
+    channel.onmessage = e => setReceivedMessages(( prev ) => [ ...prev, e.data ])
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    const inviteURL = `${window.location.origin}/?sdp=${encodeURIComponent(
-      offer.sdp
-    )}`;
-    setInviteURL(inviteURL);
-  };
+    const offer = await peerConnection.createOffer()
+    await peerConnection.setLocalDescription( offer )
+    const inviteURL = `${ window.location.origin }/?sdp=${ encodeURIComponent( offer.sdp )}`
+    setInviteURL( inviteURL )
+  }
 
   const handleRemoteSDP = async () => {
-    if (!peerConnection || !remoteSDP) return;
-    const remoteDesc = new RTCSessionDescription({
-      type: "answer",
-      sdp: remoteSDP,
-    });
-    await peerConnection.setRemoteDescription(remoteDesc);
-    setOpened(true);
-  };
-
-  const generateAnswer = async () => {
-    if (!peerConnection || !remoteSDP) return;
-    const remoteDesc = new RTCSessionDescription({
-      type: "offer",
-      sdp: remoteSDP,
-    });
-    await peerConnection.setRemoteDescription(remoteDesc);
-
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
-
-    setAnswerSDP(answer.sdp); // アンサー SDP を保存
-  };
+    if ( !peerConnection || !remoteSDP ) return
+    const remoteDesc = new RTCSessionDescription({ type: "answer", sdp: remoteSDP })
+    await peerConnection.setRemoteDescription( remoteDesc )
+  }
 
   const sendMessage = () => {
-    if (dataChannel && dataChannel.readyState === "open") {
-      dataChannel.send(message);
-      setReceivedMessages((prev) => [...prev, `You: ${message}`]);
-      setMessage("");
+    if ( dataChannel && dataChannel.readyState === "open") {
+      dataChannel.send( message )
+      setReceivedMessages(( prev ) => [ ...prev, `You: ${ message }`])
+      setMessage("")
     } else {
-      console.log("Data channel is not open.");
+      console.log("Data channel is not open.")
     }
-  };
+  }
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
     const remoteSDPFromURL = query.get("sdp");
+  
     if (remoteSDPFromURL && peerConnection) {
-      const remoteDesc = new RTCSessionDescription({
-        type: "offer",
-        sdp: remoteSDPFromURL,
-      });
+      const remoteDesc = new RTCSessionDescription({ type: "offer", sdp: remoteSDPFromURL });
       peerConnection.setRemoteDescription(remoteDesc).then(() => {
-        peerConnection.createAnswer().then((answer) => {
-          peerConnection.setLocalDescription(answer);
-          setLocalSDP(answer.sdp);
-          setAnswerSDP(answer.sdp); // アンサー SDP を保存
-        });
+        return peerConnection.createAnswer();
+      }).then((answer) => {
+        peerConnection.setLocalDescription(answer);
+        setLocalSDP(answer.sdp);
+  
+        // 自動返信用URLを生成
+        const replyURL = `${window.location.origin}/?sdp=${encodeURIComponent(answer.sdp)}`;
+        console.log("Reply URL (Share this with the sender):", replyURL);
       });
     }
   }, [peerConnection]);
+  
 
   return (
     <div>
-      {!opened ? (
-        <>
-          <h1>WebRTC Connection</h1>
-          <button onClick={createOffer}>Create Invite</button>
-          {inviteURL && (
-            <div>
-              <p>Share this URL:</p>
-              <textarea
-                readOnly
-                value={inviteURL}
-                style={{ width: "100%", height: "100px" }}
-              />
-              <p>Or scan this QR code:</p>
-              <QRCode value={inviteURL} />
-            </div>
-          )}
-
-          <div>
-            <h2>Set Remote SDP</h2>
-            <textarea
-              value={remoteSDP}
-              onChange={(e) => setRemoteSDP(e.target.value)}
-              placeholder="Paste remote SDP here"
-              style={{ width: "100%", height: "100px" }}
-            />
-            <button onClick={generateAnswer}>Generate Answer</button>
-          </div>
-
-          {answerSDP && (
-            <div>
-              <h2>Answer SDP</h2>
-              <textarea
-                readOnly
-                value={answerSDP}
-                style={{ width: "100%", height: "100px" }}
-              />
-              <p>Copy this SDP and send it to the offerer.</p>
-            </div>
-          )}
-
-          <div>
-            <h2>Local SDP</h2>
-            <textarea
-              readOnly
-              value={localSDP}
-              style={{ width: "100%", height: "100px" }}
-            />
-          </div>
-        </>
-      ) : (
+      { !opened ?
+      <>
+      <h1>WebRTC Connection</h1>
+      <button onClick={createOffer}>Create Invite</button>
+      { inviteURL && (
         <div>
-          <h2>Chat</h2>
-          <div
-            style={{
-              border: "1px solid #ccc",
-              padding: "10px",
-              height: "150px",
-              overflowY: "scroll",
-            }}
-          >
-            {receivedMessages.map((msg, index) => (
-              <div key={index}>{msg}</div>
-            ))}
-          </div>
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a message"
-            style={{ width: "80%" }}
-          />
-          <button onClick={sendMessage} style={{ width: "20%" }}>
-            Send
-          </button>
+          <p>Share this URL:</p>
+          <textarea readOnly value={ inviteURL } style={{ width: "100%", height: "100px" }} />
+          <p>Or scan this QR code:</p>
+          <QRCode value={ inviteURL }/>
         </div>
       )}
+
+      <div>
+        <h2>Set Remote SDP</h2>
+        <textarea
+          value={remoteSDP}
+          onChange={(e) => setRemoteSDP(e.target.value)}
+          placeholder="Paste remote SDP here"
+          style={{ width: "100%", height: "100px" }}
+        />
+        <button onClick={handleRemoteSDP}>Set Remote SDP</button>
+      </div>
+
+      <div>
+        <h2>Local SDP</h2>
+        <textarea readOnly value={localSDP} style={{ width: "100%", height: "100px" }} />
+      </div>
+      </>:
+      <div>
+        <h2>Chat</h2>
+        <div style={{ border: "1px solid #ccc", padding: "10px", height: "150px", overflowY: "scroll" }}>
+          {receivedMessages.map((msg, index) => (
+            <div key={index}>{msg}</div>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type a message"
+          style={{ width: "80%" }}
+        />
+        <button onClick={sendMessage} style={{ width: "20%" }}>
+          Send
+        </button>
+      </div>
+      }
     </div>
   );
 }
