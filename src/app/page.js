@@ -2,25 +2,32 @@
 
 import { useState, useEffect } from "react";
 import QRCode from "react-qr-code";
+import crypto from "crypto"; // Node.jsのcryptoライブラリを使用
 
 export default function WebRTCPage() {
   const [isAnswer, setIsAnswer] = useState(false);
-  const [loading, setLoading] = useState( false )
+  const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [localSDP, setLocalSDP] = useState("");
-  const [remoteSDP, setRemoteSDP] = useState("")
+  const [remoteSDP, setRemoteSDP] = useState("");
   const [peer, setPeer] = useState(null);
   const [inviteURL, setInviteURL] = useState("");
   const [channel, setChannel] = useState(null);
   const [msg, setMsg] = useState("");
   const [msgs, setMsgs] = useState([]);
 
+  const secretKey = "my_secret_key_12345"; // 固定の秘密鍵
+
   useEffect(() => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    });
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) {
-        setLocalSDP(pc.localDescription?.sdp || "");
+        const rawSDP = pc.localDescription?.sdp || "";
+        const encryptedSDP = encryptSDP(rawSDP, secretKey);
+        setLocalSDP(encryptedSDP);
       }
     };
 
@@ -33,10 +40,26 @@ export default function WebRTCPage() {
 
     const query = new URLSearchParams(window.location.search);
     const remoteSDPFromURL = query.get("sdp");
-    remoteSDPFromURL ? handleIncomingOffer(pc, remoteSDPFromURL) : handleCreateOffer(pc);
+    remoteSDPFromURL
+      ? handleIncomingOffer(pc, remoteSDPFromURL)
+      : handleCreateOffer(pc);
 
     return () => pc.close();
   }, []);
+
+  const encryptSDP = (sdp, key) => {
+    const cipher = crypto.createCipher("aes-256-cbc", key);
+    let encrypted = cipher.update(sdp, "utf8", "base64");
+    encrypted += cipher.final("base64");
+    return encrypted;
+  };
+
+  const decryptSDP = (encryptedSDP, key) => {
+    const decipher = crypto.createDecipher("aes-256-cbc", key);
+    let decrypted = decipher.update(encryptedSDP, "base64", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  };
 
   const handleSetupChannel = (dataChannel) => {
     setChannel(dataChannel);
@@ -58,13 +81,16 @@ export default function WebRTCPage() {
     await pc.setRemoteDescription(remoteDesc);
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    setLocalSDP(answer.sdp);
+    const encryptedAnswerSDP = encryptSDP(answer.sdp, secretKey);
+    setLocalSDP(encryptedAnswerSDP);
   };
 
-  const handleRemoteSDP = async () => {
+  const handleRemoteSDP = async (event) => {
+    event.preventDefault();
     if (!peer) return;
-    const sdp = await navigator.clipboard.readText();
-    const remoteDesc = new RTCSessionDescription({ type: "answer", sdp });
+    const encryptedSDP = event.target[0].value;
+    const rawSDP = decryptSDP(encryptedSDP, secretKey);
+    const remoteDesc = new RTCSessionDescription({ type: "answer", sdp: rawSDP });
     await peer.setRemoteDescription(remoteDesc);
   };
 
@@ -73,11 +99,10 @@ export default function WebRTCPage() {
     alert("Copied to clipboard");
   };
 
-  const handlePasteToClipboard = async event => {
-    const conf = confirm("Clipboardを使用してペーストしますか？")
-    conf ? event.target.value = await navigator.clipboard.readText(): null
-  }
-
+  const handlePasteToClipboard = async (event) => {
+    const conf = confirm("Clipboardを使用してペーストしますか？");
+    conf ? (event.target.value = await navigator.clipboard.readText()) : null;
+  };
 
   const handleSendMessage = () => {
     if (channel?.readyState === "open") {
@@ -94,49 +119,42 @@ export default function WebRTCPage() {
       {!isOpen ? (
         isAnswer ? (
           loading ? (
-            <div className="size-80 bg-[url(./favicon.ico)] bg-center bg-[size-100%] bg-no-repeat animate-spin"/>
-          ): (
-          <div className="flex flex-col items-center space-y-4">
-            <h1 className="text-2xl font-bold">Copy Your SDP</h1>
-            <button
-              onClick={() => {
-                handleCopyToClipboard(localSDP)
-                setLoading( true )
-              }}
-              className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600">
-              Copy SDP
-            </button>
-          </div>
-        )) : (
+            <div className="size-80 bg-[url(./favicon.ico)] bg-center bg-[size-100%] bg-no-repeat animate-spin" />
+          ) : (
+            <div className="flex flex-col items-center space-y-4">
+              <div className="text-2xl font-bold">Copy Your SDP</div>
+              <button
+                className="px-4 py-2 bg-blue-500 rounded hover:bg-blue-600"
+                onClick={() => {
+                  handleCopyToClipboard(localSDP);
+                  setLoading(true);
+                }}
+              >
+                Copy Remote SDP
+              </button>
+            </div>
+          )
+        ) : (
           <div className="flex flex-col items-center space-y-6">
             {inviteURL && (
-              <div className="text-center space-y-4">
-                <QRCode
-                  value={inviteURL}
-                  className="shadow-lg cursor-pointer"
-                  onClick={() => handleCopyToClipboard(inviteURL)}
-                />
-                <div
-                  className="w-64 h-8 truncate px-4 py-2 bg-gray-800 rounded-lg cursor-pointer text-sm"
-                  onClick={() => handleCopyToClipboard(inviteURL)}
-                >
+              <div
+                className="cursor-pointer"
+                onClick={() => handleCopyToClipboard(inviteURL)}
+              >
+                <QRCode value={inviteURL} className="" />
+                <div className="p-1 w-64 h-10 truncate px-4 rounded-b-lg border border-t-0 border-gray-700 text-white/50 hover:text-white">
                   {inviteURL}
                 </div>
               </div>
             )}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleRemoteSDP();
-              }}
-              className="flex flex-col items-center"
-            >
-              <input
-                placeholder="Paste the remote SDP here"
-                className="px-4 w-64 h-10 border border-b-0 border-gray-700 rounded-t-lg truncate text-white text-center"
-                onClick={ handlePasteToClipboard }
+            <form onSubmit={handleRemoteSDP} className="flex flex-col items-center">
+              <textarea
+                placeholder="Paste Remote SDP"
+                className="px-4 pt-1 w-64 h-10 border border-b-0 border-gray-700 rounded-t-lg truncate text-white text-center resize-none"
+                rows={1}
+                onClick={handlePasteToClipboard}
                 onChange={(e) => setRemoteSDP(e.target.value)}
-                value={ remoteSDP }
+                value={remoteSDP}
               />
               <button
                 type="submit"
