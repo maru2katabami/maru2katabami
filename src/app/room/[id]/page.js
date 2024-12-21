@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function RoomPage({ params }) {
   const roomId = params.id;
@@ -9,20 +10,6 @@ export default function RoomPage({ params }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [status, setStatus] = useState("idle");
-  const [currentUrl, setCurrentUrl] = useState("");
-
-  // URL を取得してステートに格納
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setCurrentUrl(window.location.href);
-    }
-  }, []);
-
-  // ページ読み込み時に接続開始
-  useEffect(() => {
-    connect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // データチャネルが open になったら状態を "connected" に更新
   useEffect(() => {
@@ -32,6 +19,7 @@ export default function RoomPage({ params }) {
   }, [dataChannel]);
 
   // ======== WebRTC 初期化 ========
+
   const initializeConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -61,6 +49,7 @@ export default function RoomPage({ params }) {
   };
 
   // ======== シグナリングヘルパー ========
+
   // ICE Candidates の取得・追加
   const getIceCandidates = async (pc) => {
     const res = await fetch(`/api/signaling/${roomId}?type=candidate`);
@@ -103,6 +92,7 @@ export default function RoomPage({ params }) {
   };
 
   // ======== 接続処理のエントリーポイント ========
+
   const connect = async () => {
     setStatus("connecting");
 
@@ -110,6 +100,7 @@ export default function RoomPage({ params }) {
 
     // まずはシグナリングサーバーからオファーを取得できるか試す
     const res = await fetch(`/api/signaling/${roomId}?type=offer`);
+
     if (res.status === 404) {
       // まだオファーが無い (= 自分がオファー側)
       const channel = pc.createDataChannel("chat");
@@ -161,6 +152,7 @@ export default function RoomPage({ params }) {
   };
 
   // ======== メッセージ送信 ========
+
   const sendMessage = () => {
     if (dataChannel && dataChannel.readyState === "open") {
       dataChannel.send(newMessage);
@@ -171,65 +163,45 @@ export default function RoomPage({ params }) {
     }
   };
 
-  // ======== URL をクリップボードにコピー ========
-  const copyUrlToClipboard = () => {
-    if (currentUrl) {
-      navigator.clipboard.writeText(currentUrl);
-      alert("URL をコピーしました！");
-    }
-  };
-
   // ======== UI ========
+
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-2xl font-bold text-gray-800">Room ID: {roomId}</h1>
-      <div className="my-4 p-4 bg-white rounded shadow">
-        <p className="text-gray-700">
-          この URL を相手に共有すると、相手はこのページにアクセスするだけで自動で接続が始まります。
-        </p>
-        <div className="flex items-center gap-2 mt-2">
-          <span className="break-all text-sm text-blue-600">{currentUrl}</span>
-          <button
-            onClick={copyUrlToClipboard}
-            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+    <div style={{ padding: "1rem" }}>
+      <h1>Room ID: {roomId}</h1>
+      <p>
+        この URL を相手に共有すると、相手はこのページを開くだけで自動的に
+        WebRTC 接続を始めます。
+      </p>
+
+      <button onClick={connect} disabled={status === "connecting" || status === "connected"}>
+        {status === "connecting" ? "接続中..." : "接続開始"}
+      </button>
+
+      {status === "connected" && (
+        <div style={{ marginTop: "1rem" }}>
+          <h2>Chat</h2>
+          <div
+            style={{
+              border: "1px solid #ccc",
+              padding: "10px",
+              height: "200px",
+              overflowY: "auto",
+              marginBottom: "1rem",
+            }}
           >
-            コピー
-          </button>
-        </div>
-      </div>
-
-      <hr className="my-6 border-gray-300" />
-
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800">接続ステータス: {status}</h2>
-        {status === "connected" && (
-          <div className="mt-4">
-            <h2 className="text-xl font-semibold text-gray-800">Chat</h2>
-            <div className="border rounded p-4 h-52 overflow-y-auto bg-white shadow-inner">
-              {messages.map((msg, index) => (
-                <div key={index} className="text-gray-700">
-                  {msg}
-                </div>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 mt-4">
-              <input
-                type="text"
-                placeholder="メッセージを入力"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-1 p-2 border rounded bg-gray-50"
-              />
-              <button
-                onClick={sendMessage}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-              >
-                送信
-              </button>
-            </div>
+            {messages.map((msg, index) => (
+              <div key={index}>{msg}</div>
+            ))}
           </div>
-        )}
-      </div>
+          <input
+            type="text"
+            placeholder="メッセージを入力"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+          />
+          <button onClick={sendMessage}>送信</button>
+        </div>
+      )}
     </div>
   );
 }
