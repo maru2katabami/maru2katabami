@@ -9,6 +9,7 @@ let signalStore = {};
  *  }
  */
 export async function POST(req, { params }) {
+  const headers = { "Access-Control-Allow-Origin": "*" }
   const { id } = params;
   const body = await req.json();
 
@@ -27,7 +28,7 @@ export async function POST(req, { params }) {
     signalStore[id][body.type] = body.data;
   }
 
-  return new Response(JSON.stringify({ success: true }), { status: 200 });
+  return new Response(JSON.stringify({ success: true }), { status: 200, headers });
 }
 
 /**
