@@ -13,7 +13,6 @@
     "@react-three/fiber": "^8.17.10",
     "@react-three/rapier": "^1.5.0",
     "crypto": "^1.0.1",
-    "crypto-js": "^4.2.0",
     "leva": "^0.9.35",
     "next": "14.2.18",
     "react": "^18",
