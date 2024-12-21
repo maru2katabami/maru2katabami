@@ -4,132 +4,104 @@ import QRCode from "react-qr-code";
 import crypto from "crypto";
 
 export default function Page() {
-  const [isAnswering, setIsAnswering] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isChannelOpen, setIsChannelOpen] = useState(false);
-  const [localSdp, setLocalSdp] = useState("");
-  const [remoteSdp, setRemoteSdp] = useState("");
-  const [peerConnection, setPeerConnection] = useState(null);
-  const [inviteUrl, setInviteUrl] = useState("");
-  const [dataChannel, setDataChannel] = useState(null);
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([]);
+  const [isAnswer, setIsAnswer] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [localSDP, setLocalSDP] = useState("");
+  const [remoteSDP, setRemoteSDP] = useState("");
+  const [peer, setPeer] = useState(null);
+  const [inviteURL, setInviteURL] = useState("");
+  const [channel, setChannel] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [msgs, setMsgs] = useState([]);
   const SECRET_KEY = process.env.NEXT_PUBLIC_SECRET_KEY;
 
-  const handleEncrypt = (text) => {
-    const cipher = crypto.createCipher("aes-256-cbc", SECRET_KEY);
-    let encryptedData = cipher.update(text, "utf8", "hex");
-    encryptedData += cipher.final("hex");
-    return encryptedData;
+  const encrypt = (t) => {
+    const c = crypto.createCipher("aes-256-cbc", SECRET_KEY);
+    let eData = c.update(t, "utf8", "hex");
+    eData += c.final("hex");
+    return eData;
   };
-
-  const handleDecrypt = (text) => {
-    const decipher = crypto.createDecipher("aes-256-cbc", SECRET_KEY);
-    let decryptedData = decipher.update(text, "hex", "utf8");
-    decryptedData += decipher.final("utf8");
-    return decryptedData;
+  const decrypt = (t) => {
+    const d = crypto.createDecipher("aes-256-cbc", SECRET_KEY);
+    let dData = d.update(t, "hex", "utf8");
+    dData += d.final("utf8");
+    return dData;
   };
 
   useEffect(() => {
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
     pc.onicecandidate = (e) => {
-      if (!e.candidate) {
-        setLocalSdp(handleEncrypt(pc.localDescription?.sdp || ""));
-      }
+      if (!e.candidate) setLocalSDP(encrypt(pc.localDescription?.sdp || ""));
     };
-    pc.ondatachannel = (e) => handleSetupDataChannel(e.channel);
-
-    setPeerConnection(pc);
-
-    const query = new URLSearchParams(window.location.search);
-    const sdpFromQuery = query.get("sdp");
-    sdpFromQuery
-      ? handleReceiveOffer(pc, handleDecrypt(sdpFromQuery))
-      : handleCreateOffer(pc);
-
+    pc.ondatachannel = (e) => setupDataChannel(e.channel);
+    setPeer(pc);
+    const q = new URLSearchParams(window.location.search);
+    const sdp = q.get("sdp");
+    sdp ? handleIncomingOffer(pc, decrypt(sdp)) : createOffer(pc);
     return () => pc.close();
   }, []);
 
-  const handleSetupDataChannel = (dc) => {
-    setDataChannel(dc);
-    dc.onopen = () => setIsChannelOpen(true);
-    dc.onmessage = (e) =>
-      setMessages((prev) => [...prev, `Anonymous: ${e.data}`]);
+  const setupDataChannel = (dc) => {
+    setChannel(dc);
+    dc.onopen = () => setIsOpen(true);
+    dc.onmessage = (e) => setMsgs((p) => [...p, `Anonymous: ${e.data}`]);
   };
-
-  const handleCreateOffer = async (pc) => {
+  const createOffer = async (pc) => {
     const dc = pc.createDataChannel("chat");
-    handleSetupDataChannel(dc);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    const encryptedSdp = handleEncrypt(offer.sdp);
-    const url = `${window.location.origin}/?sdp=${encodeURIComponent(
-      encryptedSdp
-    )}`;
-    setInviteUrl(url);
+    setupDataChannel(dc);
+    const o = await pc.createOffer();
+    await pc.setLocalDescription(o);
+    const enc = encrypt(o.sdp);
+    const url = `${window.location.origin}/?sdp=${encodeURIComponent(enc)}`;
+    setInviteURL(url);
   };
-
-  const handleReceiveOffer = async (pc, decryptedSdp) => {
-    setIsAnswering(true);
-    await pc.setRemoteDescription(
-      new RTCSessionDescription({ type: "offer", sdp: decryptedSdp })
-    );
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    setLocalSdp(handleEncrypt(answer.sdp));
+  const handleIncomingOffer = async (pc, s) => {
+    setIsAnswer(true);
+    await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: s }));
+    const a = await pc.createAnswer();
+    await pc.setLocalDescription(a);
+    setLocalSDP(encrypt(a.sdp));
   };
-
-  const handleRemoteSdpSubmit = async (e) => {
+  const handleRemoteSDPSubmit = async (e) => {
     e.preventDefault();
-    if (!peerConnection) return;
-    const decryptedSdp = handleDecrypt(e.target[0].value);
-    await peerConnection.setRemoteDescription(
-      new RTCSessionDescription({ type: "answer", sdp: decryptedSdp })
-    );
+    if (!peer) return;
+    const s = decrypt(e.target[0].value);
+    await peer.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: s }));
   };
-
-  const handleCopyToClipboard = async (text) => {
-    await navigator.clipboard.writeText(text);
+  const copyToClipboard = async (t) => {
+    await navigator.clipboard.writeText(t);
     alert("Copied to clipboard");
   };
-
-  const handlePasteFromClipboard = async (e) => {
-    if (confirm("Clipboardを使用してペーストしますか？")) {
+  const pasteFromClipboard = async (e) => {
+    if (confirm("Clipboardを使用してペーストしますか？"))
       e.target.value = await navigator.clipboard.readText();
-    }
   };
-
-  const handleSendMessage = () => {
-    if (dataChannel?.readyState === "open") {
-      dataChannel.send(message);
-      setMessages((prev) => [...prev, `You: ${message}`]);
-      setMessage("");
-    } else {
-      alert("Data channel is not open.");
-    }
+  const sendMessage = () => {
+    if (channel?.readyState === "open") {
+      channel.send(msg);
+      setMsgs((p) => [...p, `You: ${msg}`]);
+      setMsg("");
+    } else alert("Data channel is not open.");
   };
-
+  
   return (
-    <main className="min-h-screen bg-black text-white flex items-center justify-center">
-      <div className="relative w-full h-full flex items-center justify-center">
-        {!isChannelOpen ? (
-          isAnswering ? (
-            isLoading ? (
-              <div className="w-20 h-20 rounded-full border-t-4 border-b-4 border-cyan-300 animate-spin" />
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 text-white flex items-center justify-center">
+      <div className="relative w-full h-full flex items-center justify-center p-8">
+        {!isOpen ? (
+          isAnswer ? (
+            loading ? (
+              <div className="w-16 h-16 rounded-full border-t-4 border-b-4 border-cyan-400 animate-spin" />
             ) : (
-              <div className="flex flex-col items-center space-y-6 p-8 bg-gradient-to-br from-transparent to-gray-900 backdrop-blur-md border border-cyan-400/50 rounded-2xl shadow-[0_0_30px_10px_rgba(0,255,255,0.7)]">
-                <h1 className="text-4xl font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-400 to-purple-500 animate-pulse">
+              <div className="flex flex-col items-center space-y-8 p-10 bg-gradient-to-br from-gray-800 via-gray-900 to-black/80 backdrop-blur-xl border border-cyan-500/60 rounded-3xl shadow-2xl">
+                <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-purple-600 animate-pulse">
                   Copy Your SDP
                 </h1>
                 <button
-                  className="px-8 py-3 text-lg bg-gradient-to-r from-cyan-300 to-purple-500 hover:from-purple-500 hover:to-cyan-300 rounded-lg transition-transform transform hover:scale-110 shadow-[0_0_20px_rgba(0,255,255,0.7)]"
+                  className="px-10 py-3 text-lg font-medium bg-gradient-to-r from-cyan-500 to-purple-700 hover:from-purple-700 hover:to-cyan-500 rounded-full transition-transform transform hover:scale-105 shadow-lg"
                   onClick={() => {
-                    handleCopyToClipboard(localSdp);
-                    setIsLoading(true);
+                    copyToClipboard(localSDP);
+                    setLoading(true);
                   }}
                 >
                   Copy Remote SDP
@@ -137,36 +109,36 @@ export default function Page() {
               </div>
             )
           ) : (
-            <div className="flex flex-col items-center space-y-6 p-8 bg-gradient-to-br from-transparent to-gray-900 backdrop-blur-lg border border-cyan-400/50 rounded-2xl shadow-[0_0_30px_10px_rgba(0,255,255,0.7)]">
-              {inviteUrl && (
+            <div className="flex flex-col items-center space-y-8 p-10 bg-gradient-to-br from-gray-800 via-gray-900 to-black/80 backdrop-blur-xl border border-cyan-500/60 rounded-3xl shadow-2xl">
+              {inviteURL && (
                 <div
                   className="cursor-pointer group"
-                  onClick={() => handleCopyToClipboard(inviteUrl)}
+                  onClick={() => copyToClipboard(inviteURL)}
                 >
                   <QRCode
-                    value={inviteUrl}
-                    className="shadow-[0_0_20px_rgba(0,255,255,0.7)] group-hover:scale-110 transition-transform duration-300"
+                    value={inviteURL}
+                    className="shadow-xl group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="mt-2 p-2 w-64 text-center truncate px-4 rounded-lg border border-gray-600 bg-gray-800 text-gray-300 group-hover:text-white transition">
-                    {inviteUrl}
+                  <div className="mt-4 p-3 w-64 text-center truncate rounded-lg border border-gray-700 bg-gray-900 text-gray-300 group-hover:text-white transition">
+                    {inviteURL}
                   </div>
                 </div>
               )}
               <form
-                onSubmit={handleRemoteSdpSubmit}
-                className="flex flex-col items-center space-y-4 w-full max-w-md"
+                onSubmit={handleRemoteSDPSubmit}
+                className="flex flex-col items-center space-y-6 w-full max-w-lg"
               >
                 <textarea
                   placeholder="Paste Remote SDP"
-                  className="w-full px-4 py-2 border border-gray-600 bg-gray-800 text-gray-300 rounded-lg focus:ring focus:ring-cyan-300/70 resize-none"
-                  rows={3}
-                  onClick={handlePasteFromClipboard}
-                  onChange={(e) => setRemoteSdp(e.target.value)}
-                  value={remoteSdp}
+                  className="w-full px-6 py-4 border border-gray-700 bg-gray-800 text-gray-300 rounded-xl focus:ring-4 focus:ring-cyan-500/50 resize-none shadow-inner"
+                  rows={4}
+                  onClick={pasteFromClipboard}
+                  onChange={(e) => setRemoteSDP(e.target.value)}
+                  value={remoteSDP}
                 />
                 <button
                   type="submit"
-                  className="w-full px-4 py-2 bg-gradient-to-r from-green-300 to-teal-500 hover:from-teal-500 hover:to-green-300 rounded-lg transition-transform transform hover:scale-110 shadow-[0_0_20px_rgba(0,255,255,0.7)]"
+                  className="w-full px-6 py-3 bg-gradient-to-r from-teal-500 to-blue-700 hover:from-blue-700 hover:to-teal-500 rounded-full transition-transform transform hover:scale-105 shadow-lg"
                 >
                   Set Remote SDP
                 </button>
@@ -174,12 +146,12 @@ export default function Page() {
             </div>
           )
         ) : (
-          <div className="max-w-md w-full bg-gradient-to-br from-transparent to-gray-900 p-6 rounded-2xl backdrop-blur-lg border border-cyan-400/50 shadow-[0_0_30px_10px_rgba(0,255,255,0.7)]">
-            <h2 className="text-3xl font-bold mb-4 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-blue-400 to-purple-500 animate-pulse">
+          <div className="max-w-lg w-full bg-gradient-to-br from-gray-800 via-gray-900 to-black/80 p-8 rounded-3xl backdrop-blur-xl border border-cyan-500/60 shadow-2xl">
+            <h2 className="text-4xl font-bold mb-6 text-center text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-purple-600 animate-pulse">
               Chat
             </h2>
-            <div className="border border-gray-600 p-4 h-40 overflow-y-scroll rounded-lg mb-4 bg-gray-800 shadow-inner">
-              {messages.map((m, i) => (
+            <div className="border border-gray-700 p-6 h-48 overflow-y-scroll rounded-lg mb-6 bg-gray-900 shadow-inner">
+              {msgs.map((m, i) => (
                 <div key={i} className="text-sm text-gray-400">
                   {m}
                 </div>
@@ -188,14 +160,14 @@ export default function Page() {
             <div className="flex items-center space-x-4">
               <input
                 type="text"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                value={msg}
+                onChange={(e) => setMsg(e.target.value)}
                 placeholder="Type a message"
-                className="flex-1 px-4 py-2 border border-gray-600 bg-gray-800 text-white rounded-lg focus:ring focus:ring-cyan-300/70"
+                className="flex-1 px-6 py-3 border border-gray-700 bg-gray-900 text-white rounded-xl focus:ring-4 focus:ring-cyan-500/50 shadow-inner"
               />
               <button
-                onClick={handleSendMessage}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-300 to-purple-500 hover:from-purple-500 hover:to-cyan-300 rounded-lg transition-transform transform hover:scale-110 shadow-[0_0_20px_rgba(0,255,255,0.7)]"
+                onClick={sendMessage}
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-700 hover:from-purple-700 hover:to-cyan-500 rounded-full transition-transform transform hover:scale-105 shadow-lg"
               >
                 Send
               </button>
@@ -205,4 +177,5 @@ export default function Page() {
       </div>
     </main>
   );
+  
 }
