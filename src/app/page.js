@@ -1,90 +1,49 @@
+// pages/index.js or pages/Page.js
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import QRCode from "react-qr-code";
-import crypto from "crypto";
+import useEncryption from "../hooks/useEncryption";
+import useWebRTC from "../hooks/useWebRTC";
+import useClipboard from "../hooks/useClipboard";
+import useChat from "../hooks/useChat";
 
 export default function Page() {
-  const [isAnswer, setIsAnswer] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [localSDP, setLocalSDP] = useState("");
-  const [remoteSDP, setRemoteSDP] = useState("");
-  const [peer, setPeer] = useState(null);
-  const [inviteURL, setInviteURL] = useState("");
-  const [channel, setChannel] = useState(null);
-  const [msg, setMsg] = useState("");
-  const [msgs, setMsgs] = useState([]);
   const SECRET_KEY = process.env.NEXT_PUBLIC_SECRET_KEY;
+  const { encrypt, decrypt } = useEncryption(SECRET_KEY);
+  const {
+    localSDP,
+    inviteURL,
+    isAnswer,
+    loading,
+    setLoading,
+    channel,
+    isOpen,
+    msgs: webrtcMsgs,
+    setRemoteSDP: setWebRTCRemoteSDP,
+  } = useWebRTC(encrypt, decrypt);
+  const { copyToClipboard, pasteFromClipboard } = useClipboard();
+  const { msg, setMsg, msgs: chatMsgs, sendMessage } = useChat(channel);
 
-  const encrypt = (t) => {
-    const c = crypto.createCipher("aes-256-cbc", SECRET_KEY);
-    let eData = c.update(t, "utf8", "hex");
-    eData += c.final("hex");
-    return eData;
-  };
-  const decrypt = (t) => {
-    const d = crypto.createDecipher("aes-256-cbc", SECRET_KEY);
-    let dData = d.update(t, "hex", "utf8");
-    dData += d.final("utf8");
-    return dData;
-  };
+  // Define remoteSDP state
+  const [remoteSDP, setRemoteSDP] = useState("");
 
-  useEffect(() => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-    pc.onicecandidate = (e) => {
-      if (!e.candidate) setLocalSDP(encrypt(pc.localDescription?.sdp || ""));
-    };
-    pc.ondatachannel = (e) => setupDataChannel(e.channel);
-    setPeer(pc);
-    const q = new URLSearchParams(window.location.search);
-    const sdp = q.get("sdp");
-    sdp ? handleIncomingOffer(pc, decrypt(sdp)) : createOffer(pc);
-    return () => pc.close();
-  }, []);
-
-  const setupDataChannel = (dc) => {
-    setChannel(dc);
-    dc.onopen = () => setIsOpen(true);
-    dc.onmessage = (e) => setMsgs((p) => [...p, `Anonymous: ${e.data}`]);
-  };
-  const createOffer = async (pc) => {
-    const dc = pc.createDataChannel("chat");
-    setupDataChannel(dc);
-    const o = await pc.createOffer();
-    await pc.setLocalDescription(o);
-    const enc = encrypt(o.sdp);
-    const url = `${window.location.origin}/?sdp=${encodeURIComponent(enc)}`;
-    setInviteURL(url);
-  };
-  const handleIncomingOffer = async (pc, s) => {
-    setIsAnswer(true);
-    await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: s }));
-    const a = await pc.createAnswer();
-    await pc.setLocalDescription(a);
-    setLocalSDP(encrypt(a.sdp));
-  };
   const handleRemoteSDPSubmit = async (e) => {
     e.preventDefault();
-    if (!peer) return;
-    const s = decrypt(e.target[0].value);
-    await peer.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: s }));
+    if (remoteSDP.trim()) {
+      const decryptedSDP = decrypt(remoteSDP);
+      setWebRTCRemoteSDP(decryptedSDP);
+    } else {
+      alert("Please provide a valid SDP.");
+    }
   };
-  const copyToClipboard = async (t) => {
-    await navigator.clipboard.writeText(t);
-    alert("Copied to clipboard");
+
+  const handlePaste = async () => {
+    if (confirm("Do you want to paste from the clipboard?")) {
+      const text = await pasteFromClipboard();
+      setRemoteSDP(text);
+    }
   };
-  const pasteFromClipboard = async (e) => {
-    if (confirm("Clipboardを使用してペーストしますか？"))
-      e.target.value = await navigator.clipboard.readText();
-  };
-  const sendMessage = () => {
-    if (channel?.readyState === "open") {
-      channel.send(msg);
-      setMsgs((p) => [...p, `You: ${msg}`]);
-      setMsg("");
-    } else alert("Data channel is not open.");
-  };
-  
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-black to-gray-900 text-white flex items-center justify-center">
       <div className="relative w-full h-full flex items-center justify-center p-8">
@@ -129,12 +88,13 @@ export default function Page() {
                 className="flex flex-col items-center space-y-6 w-full max-w-lg"
               >
                 <textarea
+                  name="sdp"
                   placeholder="Paste Remote SDP"
                   className="w-full px-6 py-4 border border-gray-700 bg-gray-800 text-gray-300 rounded-xl focus:ring-4 focus:ring-cyan-500/50 resize-none shadow-inner"
                   rows={4}
-                  onClick={pasteFromClipboard}
-                  onChange={(e) => setRemoteSDP(e.target.value)}
-                  value={remoteSDP}
+                  onClick={handlePaste}
+                  value={remoteSDP} // Correctly bound to remoteSDP
+                  onChange={(e) => setRemoteSDP(e.target.value)} // Updates remoteSDP state
                 />
                 <button
                   type="submit"
@@ -151,7 +111,7 @@ export default function Page() {
               Chat
             </h2>
             <div className="border border-gray-700 p-6 h-48 overflow-y-scroll rounded-lg mb-6 bg-gray-900 shadow-inner">
-              {msgs.map((m, i) => (
+              {[...webrtcMsgs, ...chatMsgs].map((m, i) => (
                 <div key={i} className="text-sm text-gray-400">
                   {m}
                 </div>
@@ -166,6 +126,7 @@ export default function Page() {
                 className="flex-1 px-6 py-3 border border-gray-700 bg-gray-900 text-white rounded-xl focus:ring-4 focus:ring-cyan-500/50 shadow-inner"
               />
               <button
+                type="button"
                 onClick={sendMessage}
                 className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-700 hover:from-purple-700 hover:to-cyan-500 rounded-full transition-transform transform hover:scale-105 shadow-lg"
               >
@@ -177,5 +138,4 @@ export default function Page() {
       </div>
     </main>
   );
-  
 }
