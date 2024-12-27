@@ -1,20 +1,12 @@
 import React, { useState, useRef, useEffect } from "react"
-import { button, useControls } from "leva"
 import { useThree } from "@react-three/fiber"
 import { RigidBody } from "@react-three/rapier"
 import * as THREE from "three"
 
-export const Throw = () => {
+export default function Throw({ shoot, power }) {
 
   const [ spheres, setSpheres ] = useState([])
   const sphereRefs = useRef([])
-
-  const { shoot, color, power } = useControls("sphere", {
-    shoot: false,
-    color: "#00FFBB",
-    power: { value: 20, min: 1, max: 50, step: 1 },
-    reset: button(() => setSpheres([]))
-  })
 
   const { camera, gl } = useThree()
   const raycaster = new THREE.Raycaster()
@@ -51,7 +43,7 @@ export const Throw = () => {
           <sphereGeometry
             args={[ 1, 32, 32 ]}/>
           <meshStandardMaterial
-            color={ color }/>
+            color={"#00FFBB"}/>
         </mesh>
       </RigidBody>
     ))

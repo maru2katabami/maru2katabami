@@ -1,27 +1,20 @@
-// hooks/useClipboard.js
-import { useCallback } from "react";
+import { useCallback } from "react"
+import toast from "react-hot-toast"
 
 const useClipboard = () => {
-  const copyToClipboard = useCallback(async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert("Copied to clipboard");
-    } catch (err) {
-      console.error("Failed to copy: ", err);
-    }
-  }, []);
 
-  const pasteFromClipboard = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      return text;
-    } catch (err) {
-      console.error("Failed to paste: ", err);
-      return "";
-    }
-  }, []);
+  const handleCopy = useCallback( async ( text ) => {
+    await navigator.clipboard.writeText( text )
+    toast("コピーしました", { duration: 3000 })
+  }, [])
 
-  return { copyToClipboard, pasteFromClipboard };
-};
+  const handlePaste = useCallback( async () => {
+    const text = await navigator.clipboard.readText()
+    toast("ペーストしました", { duration: 3000 })
+    return text
+  }, [])
 
-export default useClipboard;
+  return { handleCopy, handlePaste }
+}
+
+export default useClipboard

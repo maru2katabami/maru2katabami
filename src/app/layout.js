@@ -1,4 +1,5 @@
 import "./globals.css"
+import { Toaster } from "react-hot-toast"
 
 export const metadata = {
   title: "maru2katabami",
@@ -12,6 +13,7 @@ export default function RootLayout({ children }) {
         
       </head>
       <body>
+        <Toaster/>
         { children }
       </body>
     </html>

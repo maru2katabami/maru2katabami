@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 * { @apply outline-none bg-transparent overflow-hidden;
-    /* user-select: none;
+    user-select: none;
     -moz-user-select: none;
-    -webkit-user-select: none; */
+    -webkit-user-select: none;
 }
 
 html, body, main { @apply relative size-full }
