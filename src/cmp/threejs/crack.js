@@ -1,32 +1,33 @@
 import { useGLTF } from "@react-three/drei"
 import { RigidBody } from "@react-three/rapier"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 
 export default function Crack({ leva }) {
   const { nodes } = useGLTF("/glb/m2k.glb")
-  const state = useRef({})
+  const counts = useRef({})
+  const [types, setTypes] = useState(
+    Object.fromEntries(
+      Object.keys(nodes).map((key) => [key, "fixed"]) // 初期状態を簡潔に生成
+    )
+  )
 
-  const initializeState = (key) => {
-    if (!state.current[key]) {
-      state.current[key] = { count: 0, type: "fixed" }
+  const handleCollision = (key) => {
+    counts.current[key] = (counts.current[key] || 0) + 1
+    if (counts.current[key] >= 3 && types[key] !== "dynamic") {
+      setTypes((prev) => ({ ...prev, [key]: "dynamic" }))
     }
-    return state.current[key]
   }
 
-  return Object.keys(nodes).map((key) => {
-    const node = nodes[key]
+  return Object.entries(nodes).map(([key, node]) => {
     if (!node.isMesh) return null
 
-    const handleCollision = () => {
-      const currentState = initializeState(key)
-      currentState.count += 1
-      if (currentState.count >= 3) {
-        currentState.type = "dynamic"
-      }
-    }
-
     return (
-      <RigidBody key={key} type={initializeState(key).type} colliders="hull" onCollisionEnter={handleCollision}>
+      <RigidBody
+        key={key}
+        type={types[key]}
+        colliders="hull"
+        onCollisionEnter={() => handleCollision(key)}
+      >
         <mesh geometry={node.geometry}>
           <meshNormalMaterial />
         </mesh>
