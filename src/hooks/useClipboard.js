@@ -1,7 +1,7 @@
 import { useCallback } from "react"
 import toast from "react-hot-toast"
 
-const useClipboard = () => {
+export default function useClipboard() {
 
   const handleCopy = useCallback( async ( text ) => {
     await navigator.clipboard.writeText( text )
@@ -16,5 +16,3 @@ const useClipboard = () => {
 
   return { handleCopy, handlePaste }
 }
-
-export default useClipboard

@@ -1,4 +1,4 @@
-export { default as Gravity } from "./gravity"
-export { default as Object } from "./object"
+export { default as Force } from "./force"
 export { default as Throw } from "./throw"
-export { default as Character } from "./character"
+export { default as Crack } from "./crack"
+export { default as Items } from "./items"
