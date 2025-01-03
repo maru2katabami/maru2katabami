@@ -19,7 +19,7 @@ export default function useCryptoTicker() {
       .catch( console.error )
   }, [])
 
-  const tickerTexture = ( xOffset = 1500 ) => {
+  const tickerTexture = useMemo(( xOffset = 1500 ) => {
     const canvas = document.createElement("canvas")
     const context = canvas.getContext("2d")
     const texture = new CanvasTexture( canvas )
@@ -80,7 +80,7 @@ export default function useCryptoTicker() {
     draw()
 
     return texture
-  }
+  }, [])
 
   return tickerTexture
 }
