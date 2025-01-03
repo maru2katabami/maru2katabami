@@ -1,3 +1,7 @@
+import { useEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import { Vector3, Curve, TubeGeometry, CircleGeometry, DoubleSide } from "three"
+
 export default function Plasma({ numLines = 14, radius = 14 }) {
   const linesRef = useRef(
     Array(numLines)
