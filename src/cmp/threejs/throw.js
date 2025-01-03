@@ -33,17 +33,10 @@ export default function Throw({ leva }) {
 
   return (
     spheres.map(( sphere, index ) => (
-      <RigidBody
-        ref={ sphere.ref }
-        colliders="ball"
-        position={ sphere.position }
-        linearVelocity={ sphere.velocity }
-        key={ index }>
+      <RigidBody ref={ sphere.ref } colliders="ball" position={ sphere.position } linearVelocity={ sphere.velocity } key={ index }>
         <mesh>
-          <sphereGeometry
-            args={[ 1, 32, 32 ]}/>
-          <meshStandardMaterial
-            color={"#00FFBB"}/>
+          <sphereGeometry args={[ 1, 32, 32 ]}/>
+          <meshStandardMaterial color={"#00FFBB"}/>
         </mesh>
       </RigidBody>
     ))
