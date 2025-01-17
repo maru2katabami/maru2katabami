@@ -1,5 +1,5 @@
 import { useEffect, useRef, useMemo } from "react"
-import { Zustand } from "@/utils/zustand"
+import { useZustand } from "@/hooks"
 import { useFrame } from "@react-three/fiber"
 import { useGLTF } from "@react-three/drei"
 import { CanvasTexture } from "three"
@@ -9,7 +9,7 @@ export default function Texture() {
   const tickerDataRef = useRef([])
   const xOffsetRow = useRef( 0 )
 
-  const { map } = Zustand()
+  const { map } = useZustand()
 
   const { materials } = useGLTF("/m2k.glb")
 
@@ -79,11 +79,11 @@ export default function Texture() {
       context.fill()
       context.fillStyle = "black"
       context.textAlign = "center"
-      context.font = "20px Arial"
+      context.font = "bold 20px Arial"
       context.fillText( data.symbol.toUpperCase(), x + chartWidth / 2, y + 25 )
-      context.font = "10px Arial"
+      context.font = "bold 10px Arial"
       context.fillText(`$${ data.price }`, x + chartWidth / 2, y + 40 )
-      context.font = "10px Arial"
+      context.font = "bold 10px Arial"
       context.fillStyle = parseFloat( data.change ) >= 0 ? "green": "red"
       context.fillText(`${parseFloat( data.change ) >= 0 ? "▲": "▼"} ${ data.change }%`, x + chartWidth / 2, y + 55 )
     })

@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect, createRef } from "react"
+import { useZustand } from "@/hooks"
 import { useThree } from "@react-three/fiber"
 import { RigidBody } from "@react-three/rapier"
 import { Raycaster, Vector2 } from "three"
-import { Zustand } from "@/utils/zustand"
 
 export default function Throw() {
 
   const [ spheres, setSpheres ] = useState([])
   const sphereRefs = useRef([])
 
-  const { shoot } = Zustand()
+  const { shoot } = useZustand()
 
   const { camera, gl } = useThree()
   const raycaster = new Raycaster()

@@ -1,20 +1,25 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useGLTF } from "@react-three/drei"
 import { RigidBody } from "@react-three/rapier"
 
 export default function Objects() {
 
   const { nodes } = useGLTF("/m2k.glb")
-
-  const counts = useRef({})
-  const [ types, setTypes ] = useState( Object.fromEntries( Object.keys( nodes ).map(( key ) => [ key, "fixed"])))
-  const [ colors, setColors ] = useState( Object.fromEntries( Object.keys( nodes ).map(( key ) => [ key, "white"])))
+  const [ nodeStates, setNodeStates ] = useState(
+    Object.fromEntries(
+      Object.entries( nodes )
+        .filter(([ _, node ]) => node.name.includes("m2k"))
+        .map(([ key ]) => [ key, { count: 0, type: "fixed", color: "white"}])
+  ))
 
   const handleCollision = ( key ) => {
-    counts.current[ key ] = ( counts.current[ key ] || 0) + 1
-    if ( counts.current[ key ] >= 3 && types[ key ] !== "dynamic") setTypes(( prev ) => ({ ...prev, [key]: "dynamic"}))
-    const newColor = counts.current[ key ] >= 3 ? "red" : counts.current[ key ] === 2 ? "yellow": counts.current[ key ] === 1 ? "gray": "white"
-    setColors(( prev ) => ({ ...prev, [ key ]: newColor }))
+    setNodeStates(( prev ) => {
+      const prevState = prev[ key ]
+      const newCount = prevState.count + 1
+      const newType = newCount >= 3 ? "dynamic": "fixed"
+      const newColor = newCount >= 3 ? "red": newCount === 2 ? "yellow": newCount === 1 ? "gray": "white"
+      return { ...prev, [ key ]: { count: newCount, type: newType, color: newColor }}
+    })
   }
 
   return (
@@ -23,11 +28,12 @@ export default function Objects() {
         <primitive object={ nodes.glass }/>
       </RigidBody>
       { Object.entries( nodes ).map(([ key, node ]) => {
-        if (!node.name.includes("m2k")) return null
+        if ( !node.name.includes("m2k")) return null
+        const { type, color } = nodeStates[ key ]
         return (
-          <RigidBody key={ key } type={ types[ key ]} colliders="hull" onCollisionEnter={() => handleCollision( key )}>
+          <RigidBody key={ key } type={ type } colliders="hull" onCollisionEnter={() => handleCollision( key )}>
             <mesh geometry={ node.geometry }>
-              <meshStandardMaterial color={ colors[ key ]}/>
+              <meshStandardMaterial color={ color }/>
             </mesh>
           </RigidBody>
         )

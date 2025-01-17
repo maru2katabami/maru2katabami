@@ -11,9 +11,9 @@ export default function ThreeJS() {
 
   return (
     <Canvas>
-      <OrbitControls minDistance={ 10 }/>
+      <OrbitControls/>
       <Environment files="/env.hdr"/>
-      <ambientLight/>
+      <ambientLight intencity={ 10 }/>
       <Texture/>
       <Physics>
         <Throw/>
