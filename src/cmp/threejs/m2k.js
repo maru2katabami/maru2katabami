@@ -78,9 +78,14 @@ export function Vehicle({
   }))
 
   useEffect(() => {
-    chassisApi.position.subscribe(p => { setTarget([...p])})
-    chassisApi.velocity.subscribe(v => { velocity.current = v })
-  }, [chassisBody.current])
+    const unsubPos = chassisApi.position.subscribe(p => { setTarget([...p]) })
+    const unsubVel = chassisApi.velocity.subscribe(v => { velocity.current = v })
+    return () => {
+      unsubPos()
+      unsubVel()
+    }
+  }, [chassisApi.position, chassisApi.velocity, setTarget])
+    
 
   useFrame((_, delta) => {
 
