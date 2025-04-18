@@ -23,7 +23,6 @@ const Wheel = forwardRef(({ leftSide, radius = 0.7, ...props }, ref) => {
   )
 }, { displayName: "Wheel" })
 
-// メイン車両コンポーネント
 export function Vehicle({
   width = 1.2,
   front = 1.2,
