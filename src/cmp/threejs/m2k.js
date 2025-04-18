@@ -21,7 +21,8 @@ const Wheel = forwardRef(({ leftSide, radius = 0.7, ...props }, ref) => {
       </group>
     </group>
   )
-}, { displayName: "Wheel" })
+})
+Wheel.displayName = "Wheel"
 
 // メイン車両コンポーネント
 export function Vehicle({
@@ -78,14 +79,9 @@ export function Vehicle({
   }))
 
   useEffect(() => {
-    const unsubPos = chassisApi.position.subscribe(p => { setTarget([...p]) })
-    const unsubVel = chassisApi.velocity.subscribe(v => { velocity.current = v })
-    return () => {
-      unsubPos()
-      unsubVel()
-    }
-  }, [chassisApi.position, chassisApi.velocity, setTarget])
-    
+    chassisApi.position.subscribe(p => { setTarget([...p])})
+    chassisApi.velocity.subscribe(v => { velocity.current = v })
+  }, [chassisBody.current])
 
   useFrame((_, delta) => {
 
