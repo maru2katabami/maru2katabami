@@ -21,8 +21,9 @@ const Wheel = forwardRef(({ leftSide, radius = 0.7, ...props }, ref) => {
       </group>
     </group>
   )
-}, { displayName: "Wheel" })
+})
 
+// メイン車両コンポーネント
 export function Vehicle({
   width = 1.2,
   front = 1.2,
@@ -83,7 +84,7 @@ export function Vehicle({
       unsubPos()
       unsubVel()
     }
-  }, [])
+  }, [chassisApi.position, chassisApi.velocity, setTarget])
     
 
   useFrame((_, delta) => {
